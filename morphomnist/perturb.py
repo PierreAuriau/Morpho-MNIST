@@ -123,7 +123,7 @@ class Fracture(Perturbation):
     _ANGLE_WINDOW = 2
     _FRAC_EXTENSION = .5
 
-    def __init__(self, thickness: float = 1.5, prune: float = 2, num_frac: int = 3):
+    def __init__(self, thickness: float = 1.5, prune: float = 2, num_frac: int = 3, return_skeleton: bool = False, bias_sample: bool = False):
         """
         Parameters
         ----------
@@ -138,21 +138,58 @@ class Fracture(Perturbation):
         self.prune = prune
         self.num_frac = num_frac
         self.loc_sampler = skeleton.LocationSampler(prune, prune)
-
-    def __call__(self, morph: ImageMorphology) -> np.ndarray:
+        self.return_skeleton = return_skeleton
+        self.bias_sample = bias_sample
+        
+    def __call__(self, morph: ImageMorphology, return_centres: bool = False, return_status: bool = False) -> np.ndarray:
+        assert not (return_centres and return_status), print("Cannot return status and centers at same time")
+        status = 0
         up_thickness = self.thickness * morph.scale
         r = int(np.ceil((up_thickness - 1) / 2))
         brush = ~morphology.disk(r).astype(bool)
-        frac_img = np.pad(morph.binary_image, pad_width=r, mode='constant', constant_values=False)
+        if self.return_skeleton:
+            frac_img = np.pad(morph.skeleton, pad_width=r, mode='constant', constant_values=False)
+        else:
+            frac_img = np.pad(morph.binary_image, pad_width=r, mode='constant', constant_values=False)
         try:
-            centres = self.loc_sampler.sample(morph, self.num_frac)
-        except ValueError:  # Skeleton vanished with pruning, attempt without
-            centres = skeleton.LocationSampler().sample(morph, self.num_frac)
+            if self.bias_sample:
+                label = morph.label
+                centres = self.loc_sampler.bias_sample(morph, self.num_frac)
+            else:
+                centres = self.loc_sampler.sample(morph, self.num_frac)
+        except ValueError as e:  # Skeleton vanished with pruning, attempt without
+            if str(e)[0] == "2":
+                print(f"{str(e)[2:]} : Retrying without bias.")
+                status = 2
+                try:
+                    centres = self.loc_sampler.sample(morph, self.num_frac)
+                except ValueError as e:
+                    print(f"'-->{str(e)[2:]} : retrying sample without prunning and bias.")
+                    centres = skeleton.LocationSampler().sample(morph, self.num_frac)
+                    status = 1
+            elif str(e)[0] == "3":
+                print(f"{str(e)[2:]} : Retrying without pruning.")
+                status = 3
+                try:
+                    centres = skeleton.LocationSampler().bias_sample(morph, self.num_frac)
+                except ValueError as e:
+                    print(f"'-->{str(e)[2:]} : retrying sample without prunning and bias.")
+                    centres = skeleton.LocationSampler().sample(morph, self.num_frac)
+                    status = 1 
+            else:
+                print(f"{e} : retrying sample without prunning and bias.")
+                centres = skeleton.LocationSampler().sample(morph, self.num_frac)
+                status = 1
         for centre in centres:
             p0, p1 = self._endpoints(morph, centre)
             self._draw_line(frac_img, p0, p1, brush)
-        return frac_img[r:-r, r:-r]
-
+        if return_centres:
+            return frac_img[r:-r, r:-r], centres
+        elif return_status:
+            return frac_img[r:-r, r:-r], status
+        else:
+            return frac_img[r:-r, r:-r]
+ 
     def _endpoints(self, morph, centre):
         angle = skeleton.get_angle(morph.skeleton, *centre, self._ANGLE_WINDOW * morph.scale)
         length = morph.distance_map[centre[0], centre[1]] + self._FRAC_EXTENSION * morph.scale
