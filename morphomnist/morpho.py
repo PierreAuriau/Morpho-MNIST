@@ -38,7 +38,7 @@ class ImageMorphology:
         Euclidean distance map from the boundaries in `binary_image`.
     """
 
-    def __init__(self, image, threshold: float = .5, scale: int = 1):
+    def __init__(self, image, threshold: float = .5, scale: int = 1, label: int = None):
         """
         Parameters
         ----------
@@ -53,6 +53,7 @@ class ImageMorphology:
         self.image = np.asarray(image)
         self.threshold = threshold
         self.scale = scale
+        self.label = label
         self.hires_image, self.binary_image, self.skeleton, self.distance_map = \
             _process_img_morph(self.image, self.threshold, self.scale)
 
