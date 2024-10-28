@@ -1,5 +1,21 @@
 # Morpho-MNIST
 
+We used the Morpho-MNIST API to create a multimodal dataset that mimic two pre-processings of structural brain MRIs:
+* the first pre-processing is the Morphologist pipeline that extracts cortical sulci and create a sulus skeleton (see this [link](https://brainvisa.info/web/morphologist.html)).
+* the second prep-processing is the CAT12 pipeline that create VBM images which corresponds to gray volume differences (see this [link](https://neuro-jena.github.io/cat12-help/)).
+
+The translation into the MNIST datasets is :
+* the first modality, called `skeleton`, is the skeleton of the digit (created with the Morpho-MNIST API). The skeleton can have a fracture at a location that depends on the label of the digit (up right, up left, down right, down left). This perturbation mimics sulcus interruptions.
+* the second modality, called `image`, is the digit with a specific thickness. The change of thickness can be global or local (swelling). These perturbations mimics the differences of volume in brain areas across subjects.
+
+The goal of this multi-modal dataset is to work on multi-view learning to disentangle information shared between the two modalities and information specific to each modality.
+
+![Examples of the two modalities](examples.jpg)
+
+Below, the README from the Morpho-MNIST Github repository.
+
+<details>
+
 ![Morpho-MNIST morphometrics and perturbations](fig1.png)
 
 [_Morpho-MNIST: Quantitative Assessment and Diagnostics for Representation Learning_](https://arxiv.org/abs/1809.10780) – **Now published in the [_Journal of Machine Learning Research_](http://jmlr.org/papers/v20/19-033.html)!**
@@ -136,3 +152,5 @@ for n in range(len(images)):
 io.save_idx(perturbed_images, "output_dir/images-idx3-ubyte.gz")
 io.save_idx(perturbation_labels, "output_dir/pert-idx1-ubyte.gz")
 ```
+
+</details>
