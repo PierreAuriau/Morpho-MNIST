@@ -120,3 +120,42 @@ class LocationSampler(object):
             raise ValueError("Overpruned skeleton")
         centre_idx = np.random.choice(coords.shape[0], size=num)
         return coords[centre_idx]
+        
+    def bias_sample(self, morph: ImageMorphology, num: int = None) -> np.ndarray:
+        skel = morph.skeleton
+        if morph.label is None:
+            raise ValueError("ImageMorphology does not have the label")
+        else:
+            label = morph.label
+
+        if self.prune_tips is not None:
+            up_prune = int(self.prune_tips * morph.scale)
+            skel = erase(skel, num_neighbours(skel) == 1, up_prune)
+        if self.prune_forks is not None:
+            up_prune = int(self.prune_forks * morph.scale)
+            skel = erase(skel, num_neighbours(skel) == 3, up_prune)
+
+        coords = np.array(np.where(skel)).T
+        if coords.shape[0] == 0:
+            raise ValueError("2 Overpruned skeleton")
+        h_min, h_max = coords[:, 0].min(), coords[:, 0].max()
+        v_min, v_max = coords[:, 1].min(), coords[:, 1].max()
+        h_center = h_min + (h_max - h_min) // 2 + 1 
+        v_center = v_min + (v_max - v_min) // 2 + 1
+        
+        if label in [0, 4, 5] : # up left
+            coords = coords[(coords[:, 0] < h_center) & (coords[:, 1] < v_center)]
+        elif label in [7, 9]: # up right
+            coords = coords[(coords[:, 0] < h_center) & (coords[:, 1] >= v_center)]
+        elif label in [2, 8]: # down left
+            coords = coords[(coords[:, 0] >= h_center) & (coords[:, 1] < v_center)]
+        elif label in [3, 6]: # down right
+            coords = coords[(coords[:, 0] >= h_center) & (coords[:, 1] >= v_center)]
+        elif label == 1: # down
+            coords = coords[coords[:, 0] >= h_center]
+        else:
+            raise ValueError(f"Unknown label {label}")
+        if coords.shape[0] == 0:
+            raise ValueError(f"3 Overpruned skeleton (label {label})")
+        centre_idx = np.random.choice(coords.shape[0], size=num)
+        return coords[centre_idx]

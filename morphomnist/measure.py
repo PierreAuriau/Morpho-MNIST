@@ -125,7 +125,7 @@ def measure_batch(images, threshold: float = .5, scale: int = 4, bound_frac: flo
         import tqdm
         gen = tqdm.tqdm(gen, total=len(images), unit='img', ascii=True)
     except ImportError:
-        def plain_progress(g):
+        def plain_progress(g):  
             print(f"\rProcessing images: {0}/{len(images)}", end='')
             for i, res in enumerate(g):
                 print(f"\rProcessing images: {i + 1}/{len(images)}", end='')
